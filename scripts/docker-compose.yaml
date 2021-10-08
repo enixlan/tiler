@@ -1,0 +1,51 @@
+version: "3"
+services:
+  osm-server:
+    image: enixlan/tiler:latest
+    command: [ "/bin/sh", "-c", "/app --local-config-enabled" ]
+    volumes:
+      - ../.deploy/config:/src/.deploy/config/
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
+      - "127.0.0.1:8082:8082"
+    links:
+      - postgres
+
+  download-regions:
+    build:
+      context: download-regions/
+      dockerfile: Dockerfile
+    environment:
+      - REGIONS=europe/cyprus
+      - DB_PASSWORD=password
+      - DB_USER=postgres
+      - DB_HOST=postgres
+      - DB_NAME=postgres
+      - DB_PORT=5432
+      - CACHE_SIZE=1024
+    links:
+      - postgres
+
+  download-stylesheets:
+    build:
+      context: download-stylesheets/
+      dockerfile: Dockerfile
+    volumes:
+      - ../stylesheets/:/dest/
+    working_dir: /openstreetmap-carto
+    command: [ "/bin/sh", "-c", "cp -rf symbols /dest/symbols && cp -rf patterns /dest/patterns && cp -f mapnik.xml /dest/mapnik.xml"]
+
+  postgres:
+    image: postgis/postgis:13-3.1-alpine
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_PASSWORD=password
+
+volumes:
+  go-build-cache:
+    external: true
+  go-mod-cache:
+    external: true
